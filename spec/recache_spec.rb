@@ -6,6 +6,7 @@ RSpec.describe Recache do
       pool:   { size: 2, timeout: 5 },
       namespace: 'test'
     )
+    @recache.touch_wildcard 'test'
   end
 
   it "has a version number" do
@@ -51,6 +52,24 @@ RSpec.describe Recache do
         'world'
       end
     ).to eq('world')
+  end
+
+  it "can cached_for with pubsub" do
+    Thread.new do
+      expect(
+        @recache.cached_for('test5') do
+          sleep 1
+          'hello'
+        end
+      ).to eq('hello')
+    end
+
+    sleep 0.1
+    expect(
+      @recache.cached_for('test5') do
+        'world'
+      end
+    ).to eq('hello')
   end
 
 end

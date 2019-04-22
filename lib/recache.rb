@@ -46,20 +46,31 @@ class Recache
     end
   end
 
-  def cached_for(key, options = {})
+  def cached_for(key, options = {}, &block)
     options[:lifetime] ||= 1800
     options[:expire] ||= 0
 
-    _key = key_with_namespace(key)
     need_update = true
-    if cache_data = self.get(_key)
+    if cache_data = self.get(key)
       old_data = cache_data[:d]
       need_update = cache_data[:t].to_i < (Time.now - options[:lifetime]).to_i
     end
     if need_update
+      _key = key_with_namespace(key)
+      @pool.with do |redis|
+        if redis.get(_key + '@r')
+          sleep 0.1
+          return self.cached_for(key, options, &block)
+        else
+          redis.set(_key + '@r', '1')
+        end
+      end
       if new_data = yield
         cache_data = {d: new_data, t: Time.now.to_i}
-        self.set(_key, cache_data, expire: options[:expire])
+        self.set(key, cache_data, expire: options[:expire])
+      end
+      @pool.with do |redis|
+        redis.del(_key + '@r')
       end
     end
     new_data || old_data || options[:default]
