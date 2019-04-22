@@ -47,8 +47,10 @@ class Recache
   end
 
   def cached_for(key, options = {}, &block)
-    options[:lifetime] ||= 1800
-    options[:expire] ||= 0
+    options[:lifetime]  ||= 1800
+    options[:expire]    ||= 0
+    options[:wait_time] ||= 0.2
+    options[:max_wait_time] ||= 0.8
 
     need_update = true
     if cache_data = self.get(key)
@@ -59,7 +61,8 @@ class Recache
       _key = key_with_namespace(key)
       @pool.with do |redis|
         if redis.get(_key + '@r')
-          sleep 0.1
+          sleep(options[:wait_time])
+          options[:wait_time] += options[:wait_time] if options[:wait_time] < options[:max_wait_time]
           return self.cached_for(key, options, &block)
         else
           redis.set(_key + '@r', '1')
