@@ -16,7 +16,7 @@ class Recache
   def get(key)
     @pool.with do |redis|
       if cached_data = redis.get(key_with_namespace(key))
-        Oj.load(cached_data)
+        Oj.load(cached_data, mode: :object)
       end
     end
   end
@@ -27,7 +27,7 @@ class Recache
     _key = key_with_namespace(key)
     @pool.with do |redis|
       redis.pipelined do
-        redis.set(_key, Oj.dump(data))
+        redis.set(_key, Oj.dump(data, mode: :object))
         redis.expire(_key, options[:expire]) if options[:expire].to_i > 0
       end
     end
