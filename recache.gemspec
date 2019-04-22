@@ -14,8 +14,9 @@ Gem::Specification.new do |spec|
   spec.files         = Dir['./**/*'].reject { |file| file =~ /\.\/(bin|log|pkg|script|s|test|vendor|tmp)/ }
   spec.require_paths = ["lib"]
 
-  spec.add_runtime_dependency "activesupport"
   spec.add_runtime_dependency "redis"
+  spec.add_runtime_dependency "connection_pool"
+  spec.add_runtime_dependency "oj"
 
   spec.add_development_dependency "bundler", "~> 1.16"
   spec.add_development_dependency "rake", "~> 10.0"
