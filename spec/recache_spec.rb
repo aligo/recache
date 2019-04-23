@@ -58,7 +58,7 @@ RSpec.describe Recache do
     Thread.new do
       expect(
         @recache.cached_for('test5') do
-          sleep 1
+          sleep 0.5
           'hello'
         end
       ).to eq('hello')

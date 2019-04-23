@@ -60,22 +60,22 @@ class Recache
     end
     if need_update
       _key = key_with_namespace(key)
-      @pool.with do |redis|
-        if redis.get(_key + '@r')
-          sleep(options[:wait_time])
-          options[:wait_time] += options[:wait_time] if options[:wait_time] < options[:max_wait_time]
+      if @pool.with{|r| r.get(_key + '@r')}
+        sleep(options[:wait_time])
+        if options[:wait_time] < options[:max_wait_time]
+          options[:wait_time] += options[:wait_time]
           return self.cached_for(key, options, &block)
-        else
-          redis.set(_key + '@r', '1')
+        elsif old_data
+          return old_data
         end
+      else
+        @pool.with{|r| r.set(_key + '@r', '1')}
       end
       if new_data = yield
         cache_data = {d: new_data, t: Time.now.to_i}
         self.set(key, cache_data, expire: options[:expire])
       end
-      @pool.with do |redis|
-        redis.del(_key + '@r')
-      end
+      @pool.with{|r| r.del(_key + '@r')}
     end
     new_data || old_data || options[:default]
   end
