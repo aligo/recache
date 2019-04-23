@@ -5,6 +5,7 @@ require 'connection_pool'
 require 'oj'
 
 class Recache
+  attr_reader :pool
 
   def initialize(config)
     @config = config
