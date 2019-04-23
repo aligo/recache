@@ -80,8 +80,6 @@ class Recache
     new_data || old_data || options[:default]
   end
 
-  private
-
   def key_with_namespace(key)
     "#{@config[:namespace]}:#{key}"
   end
