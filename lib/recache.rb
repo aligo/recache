@@ -38,9 +38,13 @@ class Recache
     end
   end
 
-  def touch(key)
+  def touch(*keys)
     @pool.with do |redis|
-      redis.del(key_with_namespace(key))
+      redis.pipelined do
+        keys.each do |key|
+          redis.del(key_with_namespace(key))
+        end
+      end
     end
   end
 
