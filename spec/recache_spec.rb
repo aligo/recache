@@ -72,4 +72,24 @@ RSpec.describe Recache do
     ).to eq('hello')
   end
 
+  it "can get and set sub hash" do
+    @recache.set('test6', 'hello world', sub: 'key')
+    expect(@recache.get('test6', sub: 'key')).to eq('hello world')
+    @recache.touch('test6')
+    expect(@recache.get('test6', sub: 'key')).to eq(nil)
+  end
+
+  it "can cached_for with sub hash" do
+    expect(
+      @recache.cached_for('test7', sub: 'key') do
+        'hello'
+      end
+    ).to eq('hello')
+    expect(
+      @recache.cached_for('test7', sub: 'key') do
+        'world'
+      end
+    ).to eq('hello')
+  end
+
 end

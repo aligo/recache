@@ -14,11 +14,10 @@ class Recache
     end
   end
 
-  def get(key)
-    @pool.with do |redis|
-      if cached_data = redis.get(key_with_namespace(key))
-        Oj.load(cached_data, mode: :object)
-      end
+  def get(key, options = {})
+    _key = key_with_namespace(key)
+    if cached_data = (@pool.with {|r| options[:sub] ? r.hget(_key, options[:sub]) : r.get(_key) })
+      Oj.load(cached_data, mode: :object)
     end
   end
 
@@ -26,9 +25,14 @@ class Recache
     options[:expire] ||= 1800
 
     _key = key_with_namespace(key)
+    _value = Oj.dump(data, mode: :object)
     @pool.with do |redis|
       redis.pipelined do
-        redis.set(_key, Oj.dump(data, mode: :object))
+        if options[:sub]
+          redis.hset(_key, options[:sub], _value)
+        else
+          redis.set(_key, _value)
+        end
         redis.expire(_key, options[:expire]) if options[:expire].to_i > 0
       end
     end
@@ -54,7 +58,7 @@ class Recache
     options[:max_wait_time] ||= 0.8
 
     need_update = true
-    if cache_data = self.get(key)
+    if cache_data = self.get(key, sub: options[:sub])
       old_data = cache_data[:d]
       need_update = cache_data[:t].to_i < (Time.now - options[:lifetime]).to_i
     end
@@ -73,7 +77,7 @@ class Recache
       end
       if new_data = yield
         cache_data = {d: new_data, t: Time.now.to_i}
-        self.set(key, cache_data, expire: options[:expire])
+        self.set(key, cache_data, expire: options[:expire], sub: options[:sub])
       end
       @pool.with{|r| r.del(_key + '@r')}
     end
