@@ -60,6 +60,7 @@ class Recache
     options[:expire]    ||= 0
     options[:wait_time] ||= 0.2
     options[:max_wait_time] ||= 0.8
+    options[:lock_expire] ||= 3
 
     need_update = true
     if cache_data = self.get(key, sub: options[:sub])
@@ -77,7 +78,7 @@ class Recache
           return old_data
         end
       else
-        @pool.with{|r| r.set(_key + '@r', '1')}
+        @pool.with{|r| r.set(_key + '@r', '1', expire: options[:lock_expire])}
       end
       if new_data = yield
         cache_data = {d: new_data, t: Time.now.to_i}
