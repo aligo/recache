@@ -33,7 +33,7 @@ class Recache
         else
           redis.set(_key, _value)
         end
-        redis.expire(_key, options[:expire]) if options[:expire].to_i > 0
+        redis.expire(_key, options[:expire].to_i) if options[:expire].to_i > 0
       end
     end
   end
@@ -61,6 +61,7 @@ class Recache
     options[:wait_time] ||= 0.2
     options[:max_wait_time] ||= 0.8
     options[:lock_expire] ||= 3
+    options[:no_mutex_lock] ||= false
 
     need_update = true
     if cache_data = self.get(key, sub: options[:sub])
@@ -69,22 +70,30 @@ class Recache
     end
     if need_update
       _key = key_with_namespace(key)
-      if @pool.with{|r| r.get(_key + '@r')}
-        sleep(options[:wait_time])
-        if options[:wait_time] < options[:max_wait_time]
-          options[:wait_time] += options[:wait_time]
-          return self.cached_for(key, options, &block)
-        elsif old_data
-          return old_data
+      lock_key = _key + '@r'
+      unless options[:no_mutex_lock]
+        if @pool.with{|r| r.get(lock_key)}
+          sleep(options[:wait_time])
+          if options[:wait_time] < options[:max_wait_time]
+            options[:wait_time] += options[:wait_time]
+            return self.cached_for(key, options, &block)
+          elsif old_data
+            return old_data
+          end
+        else
+          @pool.with do |r|
+            r.set(lock_key, '1')
+            r.expire(lock_key, options[:lock_expire].to_i)
+          end
         end
-      else
-        @pool.with{|r| r.set(_key + '@r', '1', expire: options[:lock_expire])}
       end
       if new_data = yield
         cache_data = {d: new_data, t: Time.now.to_i}
         self.set(key, cache_data, expire: options[:expire], sub: options[:sub])
       end
-      @pool.with{|r| r.del(_key + '@r')}
+      unless options[:no_mutex_lock]
+        @pool.with{|r| r.del(lock_key)}
+      end
     end
     new_data || old_data || options[:default]
   end

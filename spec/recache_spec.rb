@@ -92,4 +92,28 @@ RSpec.describe Recache do
     ).to eq('hello')
   end
 
+  it "can cached_for with no_mutex_lock" do
+    2.times.map do |i|
+      sleep 0.1
+      Thread.new do
+        @recache.cached_for('lock', lifetime: 0) do
+          sleep 0.5
+          i
+        end
+      end
+    end.each(&:join)
+    expect(@recache.get('lock')[:d]).to eq(0)
+
+    2.times.map do |i|
+      sleep 0.1
+      Thread.new do
+        @recache.cached_for('no_lock', no_mutex_lock: true, lifetime: 0) do
+          sleep 0.5
+          i
+        end
+      end
+    end.each(&:join)
+    expect(@recache.get('no_lock')[:d]).to eq(1)
+  end
+
 end
